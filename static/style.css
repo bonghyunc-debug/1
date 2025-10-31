@@ -1,0 +1,151 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Pretendard", "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #f8f9fa;
+  color: #1f2933;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8f9fa;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  background-color: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+}
+
+h1,
+h2 {
+  color: #0f172a;
+}
+
+.description {
+  margin-bottom: 1.5rem;
+  color: #475569;
+}
+
+.form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+input,
+select,
+button {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+input:focus,
+select:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.form-actions {
+  margin-top: 1rem;
+  text-align: right;
+}
+
+button {
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+button:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.alert {
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.4;
+}
+
+.alert-error {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.alert-warning {
+  background-color: #fef9c3;
+  color: #b45309;
+  border: 1px solid #facc15;
+}
+
+.summary-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.summary-list div {
+  background-color: #f8fafc;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+}
+
+.summary-list dt {
+  margin: 0 0 0.25rem 0;
+  font-weight: 700;
+}
+
+.summary-list dd {
+  margin: 0;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #f8fafc;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.breakdown-table th,
+.breakdown-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.breakdown-table tr:last-child td,
+.breakdown-table tr:last-child th {
+  border-bottom: none;
+}
+
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}

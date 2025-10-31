@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>과세표준 계산 결과</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="container">
+      <h1>과세표준 계산 결과</h1>
+
+      <div class="alert alert-warning">
+        ⚠️ 세율표/공제액은 <code>gift_tax/law_tables/kor_2025.yaml</code>의 PLACEHOLDER 상태입니다. 실제 세액이 표시되지 않습니다.
+      </div>
+
+      <section>
+        <h2>입력 요약</h2>
+        <dl class="summary-list">
+          <div><dt>수증자</dt><dd>{{ breakdown.recipient_name }}</dd></div>
+          <div><dt>증여일</dt><dd>{{ breakdown.gift_date }}</dd></div>
+          <div><dt>관계</dt><dd>{{ breakdown.relationship }}</dd></div>
+          <div><dt>거주자 여부</dt><dd>{{ breakdown.residency_status }}</dd></div>
+          <div><dt>재산 종류</dt><dd>{{ breakdown.property_type }}</dd></div>
+        </dl>
+      </section>
+
+      <section>
+        <h2>과세표준 계산 경로</h2>
+        <table class="breakdown-table">
+          <tbody>
+            <tr>
+              <th scope="row">평가가액</th>
+              <td>{{ '{:,.0f}'.format(breakdown.property_value) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">채무 인수/부담액</th>
+              <td>{{ '{:,.0f}'.format(breakdown.debt_assumed) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">순증여재산가액</th>
+              <td>{{ '{:,.0f}'.format(breakdown.net_gift) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">기본공제</th>
+              <td>{{ '{:,.0f}'.format(breakdown.basic_deduction) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">10년 내 증여공제 조정</th>
+              <td>{{ '{:,.0f}'.format(breakdown.prior_gifts_adjustment) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">과세표준</th>
+              <td><strong>{{ '{:,.0f}'.format(breakdown.taxable_base) }}</strong></td>
+            </tr>
+            <tr>
+              <th scope="row">산출세액</th>
+              <td>
+                {% if breakdown.tax_due is none %}
+                <em>법규 미설정으로 세액 계산 불가</em>
+                {% else %}
+                {{ '{:,.0f}'.format(breakdown.tax_due) }}
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      {% if breakdown.notes %}
+      <section>
+        <h2>비고</h2>
+        <ul>
+          {% for note in breakdown.notes %}
+          <li>{{ note }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      <p><a href="{{ url_for('form') }}">입력 화면으로 돌아가기</a></p>
+    </main>
+  </body>
+</html>
