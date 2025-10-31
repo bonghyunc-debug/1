@@ -1,0 +1,12 @@
+# 대한민국 2025년 증여세 공제/세율표는 아직 입력되지 않았습니다.
+basic_allowances:
+  spouse: PLACEHOLDER
+  lineal_ascendant: PLACEHOLDER
+  lineal_descendant_adult: PLACEHOLDER
+  lineal_descendant_minor: PLACEHOLDER
+  others: PLACEHOLDER
+progressive_rates:
+  - bracket: PLACEHOLDER
+    rate: PLACEHOLDER
+    deduction: PLACEHOLDER
+notes: PLACEHOLDER

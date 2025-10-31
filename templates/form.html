@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>증여세 신고서 작성 프로그램</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="container">
+      <h1>증여세 신고서 작성</h1>
+      <p class="description">
+        아래 정보를 입력하고 &ldquo;계산하기&rdquo; 버튼을 눌러 과세표준 계산 결과를 확인하세요.
+      </p>
+
+      {% if errors %}
+      <div class="alert alert-error">
+        <h2>입력 오류</h2>
+        <ul>
+          {% for error in errors %}
+          <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('calculate') }}" class="form-grid">
+        <label>
+          수증자 이름
+          <input type="text" name="recipient_name" required value="{{ form_values.recipient_name | default('') }}">
+        </label>
+
+        <label>
+          증여일 (YYYY-MM-DD)
+          <input type="date" name="gift_date" required value="{{ form_values.gift_date | default('') }}">
+        </label>
+
+        <label>
+          관계
+          <select name="relationship" required>
+            <option value="" disabled {% if not form_values.relationship %}selected{% endif %}>선택해 주세요</option>
+            {% for value, label in relationship_options %}
+            <option value="{{ value }}" {% if form_values.relationship == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          거주자 여부
+          <select name="residency_status" required>
+            <option value="" disabled {% if not form_values.residency_status %}selected{% endif %}>선택해 주세요</option>
+            {% for value, label in residency_options %}
+            <option value="{{ value }}" {% if form_values.residency_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          재산 종류
+          <select name="property_type" required>
+            <option value="" disabled {% if not form_values.property_type %}selected{% endif %}>선택해 주세요</option>
+            {% for value, label in property_type_options %}
+            <option value="{{ value }}" {% if form_values.property_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          평가가액
+          <input type="number" name="property_value" required min="0" step="0.01" value="{{ form_values.property_value | default('') }}">
+        </label>
+
+        <label>
+          채무 인수/부담액 (선택)
+          <input type="number" name="debt_assumed" min="0" step="0.01" value="{{ form_values.debt_assumed | default('') }}">
+        </label>
+
+        <label>
+          최근 10년 내 동일 증여자의 누적 증여가액 (선택)
+          <input type="number" name="prior_gifts" min="0" step="0.01" value="{{ form_values.prior_gifts | default('') }}">
+        </label>
+
+        <div class="form-actions">
+          <button type="submit">계산하기</button>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
