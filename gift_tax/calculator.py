@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 import yaml
 from dateutil.parser import parse as parse_datetime
@@ -61,6 +61,9 @@ class GiftBreakdown(BaseModel):
     """Outcome of the gift tax computation."""
 
     law_configured: bool
+    law_version: Optional[str] = None
+    law_reference: Optional[str] = None
+    law_reference_url: Optional[str] = None
     recipient_name: str
     gift_date: date
     relationship: str
@@ -69,9 +72,12 @@ class GiftBreakdown(BaseModel):
     property_value: Decimal
     debt_assumed: Decimal
     net_gift: Decimal
-    basic_deduction: Decimal
+    basic_deduction_limit: Decimal
     prior_gifts_adjustment: Decimal
+    basic_deduction: Decimal
     taxable_base: Decimal
+    applied_rate: Optional[Decimal] = None
+    progressive_deduction: Optional[Decimal] = None
     tax_due: Optional[Decimal] = None
     notes: list[str] = Field(default_factory=list)
 
@@ -100,31 +106,151 @@ def load_law_table(path: str | Path) -> LawContext:
     return LawContext(data=raw_data, configured=not contains_placeholder)
 
 
+def _find_progressive_bracket(
+    brackets: Iterable[Dict[str, Any]], taxable_base: Decimal
+) -> Optional[Dict[str, Decimal]]:
+    """Locate the progressive tax bracket applicable to the taxable base."""
+
+    normalized: list[Dict[str, Decimal]] = []
+    for bracket in brackets:
+        try:
+            min_value = Decimal(str(bracket.get("min", "0")))
+            max_value = bracket.get("max")
+            max_decimal = Decimal(str(max_value)) if max_value is not None else None
+            rate = Decimal(str(bracket["rate"]))
+            deduction = Decimal(str(bracket.get("deduction", "0")))
+        except (KeyError, ValueError, TypeError):  # pragma: no cover - invalid config
+            continue
+        normalized.append(
+            {
+                "min": min_value,
+                "max": max_decimal,
+                "rate": rate,
+                "deduction": deduction,
+            }
+        )
+
+    normalized.sort(key=lambda item: item["min"])
+
+    for bracket in normalized:
+        lower_ok = taxable_base >= bracket["min"]
+        upper_ok = bracket["max"] is None or taxable_base <= bracket["max"]
+        if lower_ok and upper_ok:
+            return bracket
+
+    return None
+
+
 def compute_tax(gift_input: GiftInput, law: LawContext) -> GiftBreakdown:
     """Compute the taxable base and optionally the tax, depending on law availability."""
 
     property_value = gift_input.property_value
     debt_assumed = gift_input.debt_assumed or Decimal("0")
     net_gift = property_value - debt_assumed
+    if net_gift < 0:
+        net_gift = Decimal("0")
 
-    basic_deduction = Decimal("0")
-    prior_gifts_adjustment = gift_input.prior_gifts or Decimal("0")
-
-    taxable_base = net_gift - basic_deduction - prior_gifts_adjustment
-    if taxable_base < 0:
-        taxable_base = Decimal("0")
+    law_version: Optional[str] = None
+    law_reference: Optional[str] = None
+    law_reference_url: Optional[str] = None
 
     notes: list[str] = []
     tax_due: Optional[Decimal] = None
+    applied_rate: Optional[Decimal] = None
+    progressive_deduction: Optional[Decimal] = None
 
-    if not law.configured:
-        notes.append("법규 테이블이 PLACEHOLDER 상태이므로 세액을 계산하지 않습니다.")
+    basic_deduction_limit = Decimal("0")
+    prior_gifts_adjustment = gift_input.prior_gifts or Decimal("0")
+    basic_deduction_applied = Decimal("0")
+    taxable_base = Decimal("0")
+
+    if not law.configured or not law.data:
+        notes.append("법규 테이블이 설정되어 있지 않아 기본공제와 세액을 계산할 수 없습니다.")
     else:
-        # Placeholder for future tax calculation logic once the law table is populated.
-        notes.append("법규 테이블이 설정되어 있으나, 세액 계산 로직은 구현 예정입니다.")
+        metadata = law.data.get("metadata", {})
+        law_version = metadata.get("version")
+        law_reference = metadata.get("reference")
+        law_reference_url = metadata.get("reference_url")
+
+        residency_key = gift_input.residency_status
+        relationship_key = gift_input.relationship
+
+        basic_table = law.data.get("basic_deduction", {})
+        try:
+            basic_deduction_limit = Decimal(
+                str(basic_table[residency_key][relationship_key])
+            )
+        except KeyError:
+            notes.append(
+                "법규 테이블에 해당 거주자 구분/관계의 기본공제가 정의되어 있지 않습니다."
+            )
+            return GiftBreakdown(
+                law_configured=False,
+                law_version=law_version,
+                law_reference=law_reference,
+                law_reference_url=law_reference_url,
+                recipient_name=gift_input.recipient_name,
+                gift_date=gift_input.gift_date,
+                relationship=gift_input.relationship,
+                residency_status=gift_input.residency_status,
+                property_type=gift_input.property_type,
+                property_value=property_value,
+                debt_assumed=debt_assumed,
+                net_gift=net_gift,
+                basic_deduction_limit=basic_deduction_limit,
+                prior_gifts_adjustment=prior_gifts_adjustment,
+                basic_deduction=basic_deduction_applied,
+                taxable_base=taxable_base,
+                applied_rate=applied_rate,
+                progressive_deduction=progressive_deduction,
+                tax_due=tax_due,
+                notes=notes,
+            )
+
+        prior_gifts_adjustment = min(prior_gifts_adjustment, basic_deduction_limit)
+        basic_deduction_applied = basic_deduction_limit - prior_gifts_adjustment
+        if basic_deduction_applied < 0:
+            basic_deduction_applied = Decimal("0")
+
+        taxable_base = net_gift - basic_deduction_applied
+        if taxable_base < 0:
+            taxable_base = Decimal("0")
+
+        if taxable_base == 0:
+            tax_due = Decimal("0")
+        else:
+            bracket = _find_progressive_bracket(law.data.get("progressive_rates", []), taxable_base)
+            if bracket is None:
+                notes.append("법규 테이블의 누진세율 구간을 찾을 수 없습니다.")
+                tax_due = None
+            else:
+                applied_rate = bracket["rate"]
+                progressive_deduction = bracket.get("deduction", Decimal("0"))
+                raw_tax = taxable_base * applied_rate
+                tax_due = raw_tax - progressive_deduction
+                if tax_due < 0:
+                    tax_due = Decimal("0")
+                tax_due = tax_due.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                notes.append(
+                    "과세표준 {base:,}원에 세율 {rate}% 및 누진공제 {deduction:,}원을 적용했습니다.".format(
+                        base=int(taxable_base),
+                        rate=(applied_rate * Decimal("100")),
+                        deduction=int(progressive_deduction),
+                    )
+                )
+
+        if gift_input.prior_gifts:
+            notes.append(
+                "최근 10년 내 증여가액 {amount:,}원이 기본공제 한도를 차감했습니다.".format(
+                    amount=int(gift_input.prior_gifts or Decimal("0"))
+                )
+            )
 
     return GiftBreakdown(
-        law_configured=law.configured,
+        law_configured=law.configured and bool(law.data),
+        law_version=law_version,
+        law_reference=law_reference,
+        law_reference_url=law_reference_url,
         recipient_name=gift_input.recipient_name,
         gift_date=gift_input.gift_date,
         relationship=gift_input.relationship,
@@ -133,9 +259,12 @@ def compute_tax(gift_input: GiftInput, law: LawContext) -> GiftBreakdown:
         property_value=property_value,
         debt_assumed=debt_assumed,
         net_gift=net_gift,
-        basic_deduction=basic_deduction,
+        basic_deduction_limit=basic_deduction_limit,
         prior_gifts_adjustment=prior_gifts_adjustment,
+        basic_deduction=basic_deduction_applied,
         taxable_base=taxable_base,
+        applied_rate=applied_rate,
+        progressive_deduction=progressive_deduction,
         tax_due=tax_due,
         notes=notes,
     )

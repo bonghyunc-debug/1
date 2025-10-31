@@ -9,9 +9,18 @@
     <main class="container">
       <h1>과세표준 계산 결과</h1>
 
+      {% if not breakdown.law_configured %}
       <div class="alert alert-warning">
-        ⚠️ 세율표/공제액은 <code>gift_tax/law_tables/kor_2025.yaml</code>의 PLACEHOLDER 상태입니다. 실제 세액이 표시되지 않습니다.
+        ⚠️ 세율표/공제액이 설정되어 있지 않아 실제 세액이 표시되지 않습니다. <code>gift_tax/law_tables/kor_2025.yaml</code>을 확인해 주세요.
       </div>
+      {% else %}
+      <div class="alert alert-info">
+        📄 적용 기준일: {{ breakdown.law_version or '미기재' }} — {{ breakdown.law_reference or '법령 근거를 확인해 주세요' }}
+        {% if breakdown.law_reference_url %}
+        (<a href="{{ breakdown.law_reference_url }}" target="_blank" rel="noopener noreferrer">링크</a>)
+        {% endif %}
+      </div>
+      {% endif %}
 
       <section>
         <h2>입력 요약</h2>
@@ -41,22 +50,46 @@
               <td>{{ '{:,.0f}'.format(breakdown.net_gift) }}</td>
             </tr>
             <tr>
-              <th scope="row">기본공제</th>
-              <td>{{ '{:,.0f}'.format(breakdown.basic_deduction) }}</td>
+              <th scope="row">기본공제 한도</th>
+              <td>{{ '{:,.0f}'.format(breakdown.basic_deduction_limit) }}</td>
             </tr>
             <tr>
-              <th scope="row">10년 내 증여공제 조정</th>
+              <th scope="row">10년 내 사용된 공제액</th>
               <td>{{ '{:,.0f}'.format(breakdown.prior_gifts_adjustment) }}</td>
+            </tr>
+            <tr>
+              <th scope="row">이번 적용 기본공제</th>
+              <td>{{ '{:,.0f}'.format(breakdown.basic_deduction) }}</td>
             </tr>
             <tr>
               <th scope="row">과세표준</th>
               <td><strong>{{ '{:,.0f}'.format(breakdown.taxable_base) }}</strong></td>
             </tr>
             <tr>
+              <th scope="row">적용 세율</th>
+              <td>
+                {% if breakdown.applied_rate is none %}
+                <em>미적용</em>
+                {% else %}
+                {{ '{:,.2f}%'.format(breakdown.applied_rate * 100) }}
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">누진공제</th>
+              <td>
+                {% if breakdown.progressive_deduction is none %}
+                <em>미적용</em>
+                {% else %}
+                {{ '{:,.0f}'.format(breakdown.progressive_deduction) }}
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
               <th scope="row">산출세액</th>
               <td>
                 {% if breakdown.tax_due is none %}
-                <em>법규 미설정으로 세액 계산 불가</em>
+                <em>세액 계산 불가 (법규/세율 누락)</em>
                 {% else %}
                 {{ '{:,.0f}'.format(breakdown.tax_due) }}
                 {% endif %}
